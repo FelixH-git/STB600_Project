@@ -256,9 +256,6 @@ def main(img):
 
     return fraud_vis if fraud_vis is not None else vis
 
-img = cv2.imread("imgs/Blue.jpg")
-cv2.imshow("live",resize(main(img)))
-cv2.waitKey(0)
 
 '''img = cv2.imread("imgs/Blue.jpg")
 cv2.imshow("live",resize(main(img)))
