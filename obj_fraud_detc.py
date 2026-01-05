@@ -65,6 +65,7 @@ def find_contours(img, mask):
             2
         )
         print(f"Contour {i}: Area = {area}, BBox = ({x}, {y}, {w}, {h})")
+        BBox = ()
 
     #print(f"Detected contours: {len(contours)}")
     return vis, contours
@@ -228,6 +229,35 @@ def resize(img):
 # -------------------------
 # MAIN
 # -------------------------
+import time
+
+prev_time = time.time()
+
+def draw_fps(img):
+    global prev_time
+
+    curr_time = time.time()
+    fps = 1.0 / (curr_time - prev_time)
+    prev_time = curr_time
+
+    h, w = img.shape[:2]
+
+    cv2.putText(
+        img,
+        f"FPS: {fps:.2f}",
+        (w - 180, 40),          # top-right
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.9,
+        (0, 255, 0),
+        2,
+        cv2.LINE_AA
+    )
+
+    return img
+
+
+from split import split_contour_into_four, draw_split_contours , split_contour_ladder, split_contour_ladder_longest_side
+
 
 def main(img):
     mask = clean_img(img)
@@ -249,16 +279,21 @@ def main(img):
     fraud_vis = vis
     for obj in colors:
         try:
-            fraud, reason, fraud_vis = is_fraud(obj, vis)
+            fraud, reason, vis = is_fraud(obj, vis)
             print(f"Object {obj['object_id']}: {'FRAUD' if fraud else 'Not fraud'} – {reason}")
+            if fraud == False:
+                contour = obj["cnt"]
+
+                vis = split_contour_ladder_longest_side(vis ,contour)
+            #fraud_vis = draw_fps(fraud_vis if fraud_vis is not None else vis)
+            #return fraud_vis
+
         except Exception as e:
             print(f"Error processing object {obj['object_id']}: {e}")
+    return vis
 
-    return fraud_vis if fraud_vis is not None else vis
 
-img = cv2.imread("imgs/Blue.jpg")
-cv2.imshow("live",resize(main(img)))
-cv2.waitKey(0)
+   
 
 '''img = cv2.imread("imgs/Blue.jpg")
 cv2.imshow("live",resize(main(img)))
@@ -283,4 +318,3 @@ cv2.imshow("Original Image", resize(img))
 cv2.imshow("Detected Object", resize(vis))
 cv2.imshow("Color Classification", resize(color_vis))
 cv2.waitKey(0)'''
-
