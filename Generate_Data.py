@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import random
-
+import os
 class Generate_Data:
     def __init__(self):
         # 1. Load Background
@@ -79,55 +79,52 @@ class Generate_Data:
         return rotated
 
     def add_coin_randomly(self, coin_img_original, max_attempts=200):
-        if coin_img_original is None: return False
+            if coin_img_original is None: return None # Changed to None
 
-        bg_h, bg_w = self._backround.shape[:2]
+            bg_h, bg_w = self._backround.shape[:2]
 
-        for attempt in range(max_attempts):
-            # 1. Rotate the coin (and its hitbox)
-            angle = random.randint(0, 360)
-            coin_img = self.rotate_image(coin_img_original, angle)
-            
-            h, w = coin_img.shape[:2]
-            
-            # If coin is physically larger than background, we can't place it
-            if w >= bg_w or h >= bg_h:
-                continue 
+            for attempt in range(max_attempts):
+                # 1. Rotate the coin
+                angle = random.randint(0, 360)
+                coin_img = self.rotate_image(coin_img_original, angle)
+                
+                h, w = coin_img.shape[:2]
+                
+                # If coin is physically larger than background, we can't place it
+                if w >= bg_w or h >= bg_h:
+                    continue 
 
-            # 2. Generate the "Hitbox" (Mask) for this specific rotation
-            # We look at the Alpha channel. White = Solid Coin, Black = Empty.
-            if coin_img.shape[2] == 4:
-                # Any pixel that is visibly opaque enough to matter
-                _, coin_mask = cv2.threshold(coin_img[:, :, 3], 10, 255, cv2.THRESH_BINARY)
-            else:
-                coin_mask = 255 * np.ones((h, w), dtype=np.uint8)
+                # 2. Generate the "Hitbox" (Mask)
+                if coin_img.shape[2] == 4:
+                    _, coin_mask = cv2.threshold(coin_img[:, :, 3], 10, 255, cv2.THRESH_BINARY)
+                else:
+                    coin_mask = 255 * np.ones((h, w), dtype=np.uint8)
 
-            # 3. Pick a random spot
-            x = random.randint(0, bg_w - w)
-            y = random.randint(0, bg_h - h)
+                # 3. Pick a random spot
+                x = random.randint(0, bg_w - w)
+                y = random.randint(0, bg_h - h)
 
-            # 4. CHECK COLLISIONS
-            # Get the region of the 'Occupied Mask' where we want to put the coin
-            bg_mask_region = self._occupied_mask[y:y+h, x:x+w]
-            
-            # Bitwise AND: Checks if White overlaps White
-            intersection = cv2.bitwise_and(bg_mask_region, coin_mask)
-            
-            if np.any(intersection):
-                # We hit something! Try again.
-                continue 
-            
-            # 5. Success! Place the visual image AND update the occupied mask
-            self._place_pixels(coin_img, x, y)
-            
-            # Update the global mask so future coins know this spot is taken
-            # Bitwise OR: Adds the new coin's shape to the existing mask
-            self._occupied_mask[y:y+h, x:x+w] = cv2.bitwise_or(bg_mask_region, coin_mask)
-            
-            return True
+                # 4. CHECK COLLISIONS
+                bg_mask_region = self._occupied_mask[y:y+h, x:x+w]
+                intersection = cv2.bitwise_and(bg_mask_region, coin_mask)
 
-        print("Failed to place coin (No valid spot found).")
-        return False
+
+                if np.any(intersection):
+                    continue 
+                
+                # 5. Success! Place image and update mask
+                self._place_pixels(coin_img, x, y)
+                self._occupied_mask[y:y+h, x:x+w] = cv2.bitwise_or(bg_mask_region, coin_mask)
+
+                # cv2.imshow("occupied_mask", self._occupied_mask)
+                # cv2.waitKey(0)
+
+                # --- CHANGE: Return the Bounding Box ---
+                # Returns: (x_min, y_min, width, height) in absolute pixels
+                return (x, y, w, h)
+
+            print("Failed to place coin (No valid spot found).")
+            return None # Changed to None
 
     def _place_pixels(self, coin_img, x, y):
         h, w = coin_img.shape[:2]
@@ -155,12 +152,80 @@ if __name__ == "__main__":
     gen = Generate_Data()
     
     # Try to place multiple coins
-    coins = [gen._yellow_coin, gen._blue_coin, gen._red_coin, gen._yellow_coin, gen._blue_coin]
+    coins = [gen._yellow_coin, gen._blue_coin, gen._red_coin]
     
-    count = 0
-    for coin in coins:
-        if gen.add_coin_randomly(coin):
-            count += 1
+
+    def Create_Dataset(n_images, train_ratio=0.8):
+        # 1. Setup Directory Structure
+        base_dir = "dataset"
+        sub_dirs = ["images/train", "images/test", "labels/train", "labels/test"]
+        
+        for sub in sub_dirs:
+            os.makedirs(os.path.join(base_dir, sub), exist_ok=True)
+
+        print(f"Generating {n_images} images...")
+
+        for i in range(n_images):
+            # 2. Reset the background for the new image
+            # Make sure to reload the clean background every time
+            gen._backround = cv2.imread("Backround.jpg", cv2.IMREAD_UNCHANGED)
             
-    print(f"Total coins placed: {count}/{len(coins)}")
-    gen.save_image("Generated_Image.png")
+            # 3. Decide if this image is for Training or Testing
+            is_train = random.random() < train_ratio
+            split_folder = "train" if is_train else "test"
+            
+            # List to hold all labels for this specific image
+            image_labels = []
+            
+            # 4. Place random coins
+            coin_amount = random.randint(1, 5)
+            
+            for _ in range(coin_amount):
+                # Pick a random coin image from your list
+                coin_idx = random.randint(0, len(coins) - 1)
+                bbox = gen.add_coin_randomly(coins[coin_idx], max_attempts=1)
+                
+                if bbox is not None:
+                    x, y, w, h = bbox
+                    bg_h, bg_w = gen._backround.shape[:2]
+
+                    # --- CALCULATE YOLO COORDINATES ---
+                    center_x = x + (w / 2)
+                    center_y = y + (h / 2) # FIXED: was y + (y/2)
+
+                    norm_center_x = center_x / bg_w
+                    norm_center_y = center_y / bg_h
+                    norm_width = w / bg_w
+                    norm_height = h / bg_h
+
+                    # Format: class_id center_x center_y width height
+                    # Assuming class_id is always 0 for 'coin'
+                    label_line = f"0 {norm_center_x:.6f} {norm_center_y:.6f} {norm_width:.6f} {norm_height:.6f}"
+                    image_labels.append(label_line)
+
+            # 5. Save the Image and the Label File
+            # We use 'i' for the filename (e.g., 0.png, 1.png)
+            filename_base = str(i)
+            
+            # Save Image
+            img_path = os.path.join(base_dir, "images", split_folder, f"{filename_base}.png")
+            cv2.imwrite(img_path, gen._backround)
+            
+            # Save Labels (One .txt file per image, containing all coin lines)
+            txt_path = os.path.join(base_dir, "labels", split_folder, f"{filename_base}.txt")
+            with open(txt_path, "w") as f:
+                f.write("\n".join(image_labels))
+                
+            if i % 10 == 0:
+                print(f"Generated {i}/{n_images} images...")
+
+        print("Dataset generation complete!")
+
+    # Run it
+    Create_Dataset(n_images=10)
+    # count = 0
+    # for coin in coins:
+    #     if gen.add_coin_randomly(coin):
+    #         count += 1
+            
+    # print(f"Total coins placed: {count}/{len(coins)}")
