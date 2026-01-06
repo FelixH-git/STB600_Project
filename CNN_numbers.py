@@ -12,7 +12,7 @@ from tensorflow.keras.utils import image_dataset_from_directory
 BASE_DIR = "Digits" 
 OUT_DIR = "dataset/train"
 IMG_SIZE = 64
-SAMPLES_PER_DIGIT = 400
+SAMPLES_PER_DIGIT = 1000
 
 os.makedirs(OUT_DIR, exist_ok=True)
 

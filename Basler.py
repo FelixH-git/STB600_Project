@@ -6,7 +6,9 @@ https://www.geeksforgeeks.org/clahe-histogram-eqalization-opencv/
 from pypylon import pylon
 import cv2
 import numpy as np
-from obj_fraud_detc import main
+#from obj_fraud_detc import main
+from liveCNN import main
+
 
 
 
