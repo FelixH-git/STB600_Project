@@ -37,6 +37,7 @@ while camera.IsGrabbing():
         image = converter.Convert(grabResult)
         img = image.GetArray()
         gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
 
         vis = main(img)
         # Display the resulting frame

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.utils import image_dataset_from_directory
 
 
-BASE_DIR = "Digits" 
+BASE_DIR = "templates" 
 OUT_DIR = "dataset/train"
 IMG_SIZE = 64
 SAMPLES_PER_DIGIT = 1000
@@ -18,10 +18,20 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 for digit in range(10):
     img = cv2.imread(f"{BASE_DIR}/{digit}.png", cv2.IMREAD_GRAYSCALE)
+    img = 255 - img
     if img is None:
         raise ValueError(f"Missing {digit}.png")
 
     os.makedirs(f"{OUT_DIR}/{digit}", exist_ok=True)
+
+    pad = int(2.5 * max(img.shape))
+    img = cv2.copyMakeBorder(
+        img,
+        pad, pad, pad, pad,
+        cv2.BORDER_CONSTANT,
+        value=255
+    )
+
 
     h, w = img.shape
     center = (w // 2, h // 2)
@@ -34,12 +44,19 @@ for digit in range(10):
 
         M = cv2.getRotationMatrix2D(center, angle, scale)
         M[:, 2] += [tx, ty]
+        
 
         aug = cv2.warpAffine(
             img, M, (w, h),
             flags=cv2.INTER_NEAREST,
             borderValue=255
         )
+
+
+        ys, xs = np.where(aug < 255)
+        if len(xs) < 50:
+            continue
+        aug = aug[ys.min():ys.max()+1, xs.min():xs.max()+1]
 
         aug = cv2.resize(aug, (IMG_SIZE, IMG_SIZE))
 
@@ -50,19 +67,28 @@ for digit in range(10):
 
 TRAIN = "dataset/train"
 VAL = "dataset/val"
+
 os.makedirs(VAL, exist_ok=True)
 
 for digit in range(10):
-    os.makedirs(f"{VAL}/{digit}", exist_ok=True)
+    src_dir = f"{TRAIN}/{digit}"
+    dst_dir = f"{VAL}/{digit}"
 
-    files = os.listdir(f"{TRAIN}/{digit}")
+    os.makedirs(dst_dir, exist_ok=True)
+
+    files = [
+        f for f in os.listdir(src_dir)
+        if f.lower().endswith((".png", ".jpg", ".jpeg"))
+    ]
+
     random.shuffle(files)
+    val_files = files[:50]
 
-    for f in files[:50]:
-        shutil.move(
-            f"{TRAIN}/{digit}/{f}",
-            f"{VAL}/{digit}/{f}"
-        )
+    for f in val_files:
+        src = os.path.join(src_dir, f)
+        dst = os.path.join(dst_dir, f)
+        shutil.move(src, dst)
+
 
 model = models.Sequential([
     layers.Input(shape=(64,64,1)),

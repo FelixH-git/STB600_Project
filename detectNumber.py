@@ -5,7 +5,7 @@ from tensorflow.keras.models import load_model
 import math
 
 MODEL_PATH = "digit_cnn.keras"
-IMG_PATH = "Images/Yellow.jpg"
+IMG_PATH = "Images/Red.jpg"
 IMG_SIZE = 64
 
 model = load_model(MODEL_PATH)
@@ -135,7 +135,6 @@ for (x0, y0, x1, y1) in digit_boxes:
 
     plt.figure(figsize=(2,2))
     plt.imshow(crop.squeeze(), cmap="gray")
-    plt.title(f"Input to CNN")
     plt.axis("off")
     plt.show()
 
