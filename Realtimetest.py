@@ -38,8 +38,7 @@ def remove_green_and_open(frame):
     no_green = cv2.bitwise_and(frame, frame, mask=mask_inv)
 
     gray = cv2.cvtColor(no_green, cv2.COLOR_BGR2GRAY)
-    cv2.imshow("gray", resize(gray, 3))
-    _, thresh = cv2.threshold(gray, 100, 115, cv2.THRESH_BINARY)
+    _, thresh = cv2.threshold(gray, 40, 255, cv2.THRESH_BINARY)
     cv2.imshow("gray", resize(thresh, 3))
     
 
@@ -55,10 +54,13 @@ def remove_green_and_open(frame):
 
     coin = no_green[y:y+h, x:x+w]
     coin_gray = cv2.cvtColor(coin, cv2.COLOR_BGR2GRAY)
-    _, coin_thresh = cv2.threshold(coin_gray, 10, 255, cv2.THRESH_BINARY)
+    _, coin_thresh = cv2.threshold(coin_gray, 0, 255, cv2.THRESH_BINARY)
 
-    kernel = np.ones((3, 3), np.uint8)
+    kernel = np.ones((9, 9), np.uint8)
     opening = cv2.morphologyEx(coin_thresh, cv2.MORPH_OPEN, kernel)
+
+    cv2.imshow("opening", opening)
+
 
     return opening, (x, y, w, h)
 
@@ -113,7 +115,7 @@ while camera.IsGrabbing():
 
         if opening is not None and bbox is not None:
             x0, y0, _, _ = bbox
-            cv2.imshow("OPening", opening)
+            
             for name, tmpl in templates.items():
                 match_info, score = match_template(opening, tmpl)
 
