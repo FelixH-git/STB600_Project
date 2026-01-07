@@ -41,6 +41,7 @@ def agglomerative_cluster(contours, threshold_distance=40.0):
             break
 
     return current_contours
+
 def agglomerative_cluster1(contours, threshold_distance=40.0):
     current_contours = list(contours)  # 👈 FIX
 

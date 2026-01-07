@@ -276,7 +276,6 @@ def main(img):
         )
         return vis
 
-    fraud_vis = vis
     for obj in colors:
         try:
             fraud, reason, vis = is_fraud(obj, vis)
@@ -294,27 +293,3 @@ def main(img):
 
 
    
-
-'''img = cv2.imread("imgs/Blue.jpg")
-cv2.imshow("live",resize(main(img)))
-cv2.waitKey(0)'''
-'''img = cv2.imread("imgs/Blue.jpg")
-
-mask = clean_img(img)
-vis, contours = find_contours(img, mask)
-colors, color_vis = classify_object_color2(img, mask, contours)
-
-#print(colors)
-
-for obj in colors:
-    fraud, reason = is_fraud(obj)
-
-    status = "FRAUD :(" if fraud else "Not fraud :)"
-    print(f"Object {obj['object_id']}: {status} – {reason}")
-
-
-cv2.imshow("Original Image", resize(img))
-#cv2.imshow("Mask (object)", resize(mask))
-cv2.imshow("Detected Object", resize(vis))
-cv2.imshow("Color Classification", resize(color_vis))
-cv2.waitKey(0)'''
