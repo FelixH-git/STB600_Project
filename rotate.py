@@ -65,10 +65,10 @@ def upsidedown(coin, color, blobs):
             dark[h//2:3*h//4, :],
             dark[3*h//4:h, :]
         ]
-        plt.imshow(dark, cmap="gray")
-        plt.title("Dark mask rotate")
-        plt.axis("off")
-        plt.show()
+        # plt.imshow(dark, cmap="gray")
+        # plt.title("Dark mask rotate")
+        # plt.axis("off")
+        # plt.show()
         scores = [cv2.countNonZero(s) for s in slices]
         
         for i, score in enumerate(scores):
