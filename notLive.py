@@ -54,7 +54,6 @@ def classify_shape(area):
 
     x, y, w, h = cv2.boundingRect(contour)
     aspect_ratio = max(w, h) / max(1, min(w, h))
-    print('Ratio: ',aspect_ratio)
 
     if 1 <= aspect_ratio < 1.3:
         return "SMALL"
@@ -88,7 +87,7 @@ def classify_group(size_labels):
 
 
 
-img = cv2.imread("Blue.png")
+img = cv2.imread("Blueup.png")
 
 # Remove green background
 hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -231,7 +230,6 @@ for coin in coins:
             # CLASSIFY DIGIT
             # -----------------------------
             digit = classify_group(group_sizes)
-            print(f"GROUP {g_idx} | color={color_name} | digit={digit}")
 
             # Compute group label position (average centroid)
             if group_centers:
@@ -277,17 +275,14 @@ for coin in coins:
 
         needs_order = coin_color in ("blue", "yellow")
         if needs_order:
-            print("Needs order----------------")
             flipped = upsidedown(coin_img, coin_color, coin_blobs)
         else:
-            print("FLipped-----------------")
             flipped = False
 
         # Order digits top to bottom
         results.sort(key=lambda r: r["center"][1])
 
         if flipped:
-            print("FLipped-----------------")
             results.reverse()
 
         # SAVE TO THIS COIN

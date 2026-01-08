@@ -10,7 +10,7 @@ def long_edge_vertical_angle(rect):
     if w > h:
         return -angle
     else:
-        return -(angle - 90)
+        return -(angle)
 
 def rotate_and_crop(img, cnt):
     rect = cv2.minAreaRect(cnt)
