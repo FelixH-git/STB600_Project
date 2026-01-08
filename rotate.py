@@ -39,7 +39,7 @@ def rotate_and_crop(img, cnt):
 
     return rotated[y:y2, x:x2]
 
-def upsidedown(coin, mode, blobs):
+def upsidedown(coin, color, blobs):
 
 
     strong = [((cx, cy), size)
@@ -47,7 +47,6 @@ def upsidedown(coin, mode, blobs):
               if size in ("MEDIUM", "BIG")]
     
     if strong:
-        print("Stroing")
         xs = [cx for (cx, cy), _ in strong]
         center_x = sum(xs) / len(xs)
 
@@ -56,7 +55,7 @@ def upsidedown(coin, mode, blobs):
 
         return on_right < len(xs) / 2
 
-    elif mode == "blue":
+    elif color == "blue":
         gray = cv2.cvtColor(coin, cv2.COLOR_BGR2GRAY)
         _, dark = cv2.threshold(gray, 26, 255, cv2.THRESH_BINARY_INV)
         h = dark.shape[0]
@@ -80,7 +79,7 @@ def upsidedown(coin, mode, blobs):
             coin = cv2.rotate(coin, cv2.ROTATE_180)
             return True
         
-    elif mode == "yellow":
+    elif color == "yellow":
         return False
             
 

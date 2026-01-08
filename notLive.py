@@ -84,6 +84,24 @@ def classify_group(size_labels):
 
     return None
 
+def coin_value(color, digits):
+
+    if not digits:
+        return None
+
+    if color == "blue":
+        return int("".join(map(str, digits)))
+
+    if color == "yellow":
+        return int("".join(map(str, digits))) * 10
+
+    if color == "red":
+        value = 1
+        for d in digits:
+            value *= d
+        return value
+
+    return None
 
 
 
@@ -126,7 +144,6 @@ for contour in all_contours:
             "bbox": (x, y, w, h),
         })
 
-print("Coins: ", len(all_contours))
 for coin in coins:
     coin_img = coin["image"]
     hsv = cv2.cvtColor(coin_img, cv2.COLOR_BGR2HSV)
@@ -278,10 +295,15 @@ for coin in coins:
 
         # SAVE TO THIS COIN
         coin["digits"] = [r["digit"] for r in results]
+        value = coin_value(coin_color, coin["digits"])
+        coin["value"] = value
+
+
+        digits_str = "".join(map(str, coin["digits"]))
+        label = f"Digits: {digits_str} - Value: {coin['value']}"
+
 
         x, y, w, h = coin["bbox"]
-        label = "".join(map(str, coin["digits"]))
-
         top_point = min(contour, key=lambda p: p[0][1])  # smallest y
         tx = top_point[0][0]
         ty = top_point[0][1]
