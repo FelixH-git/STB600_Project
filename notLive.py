@@ -126,7 +126,7 @@ for contour in all_contours:
             "bbox": (x, y, w, h),
         })
 
-print("Coins: ", len(coins))
+print("Coins: ", len(all_contours))
 for coin in coins:
     coin_img = coin["image"]
     hsv = cv2.cvtColor(coin_img, cv2.COLOR_BGR2HSV)
@@ -205,7 +205,7 @@ for coin in coins:
 
             group_sizes = []
             group_centers = []
-            print(f"\nGROUP {g_idx} ({color_name})")
+
             for centroid_idx in group:
                 contour_i, (cx, cy) = centroids[centroid_idx]
                 contour = contours[contour_i]
@@ -253,16 +253,7 @@ for coin in coins:
                 text_x = min(text_x, w - 40)
                 text_y = max(text_y, 20)
 
-                cv2.putText(
-                    img,
-                    str(digit),
-                    (text_x, text_y),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1.0,
-                    (255, 255, 255),
-                    2,
-                    cv2.LINE_AA
-                )
+                
 
                 results.append({
                 "color": color_name,
@@ -291,10 +282,14 @@ for coin in coins:
         x, y, w, h = coin["bbox"]
         label = "".join(map(str, coin["digits"]))
 
+        top_point = min(contour, key=lambda p: p[0][1])  # smallest y
+        tx = top_point[0][0]
+        ty = top_point[0][1]
+
         cv2.putText(
             img,
             label,
-            (x + w // 2, max(20, y - 10)),
+            (x, y),
             cv2.FONT_HERSHEY_SIMPLEX,
             1.0,
             (255, 255, 255),
@@ -303,20 +298,6 @@ for coin in coins:
 
 
 
-y = 30
-for r in results:
-    text = f"{r['color'].upper()} G{r['group_id']} {r['digit']}"
-    cv2.putText(
-        img,
-        text,
-        (10, y),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (255, 255, 255),
-        2,
-        cv2.LINE_AA
-    )
-    y += 25
 
 
 

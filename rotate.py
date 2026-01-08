@@ -58,7 +58,7 @@ def upsidedown(coin, mode, blobs):
 
     elif mode == "blue":
         gray = cv2.cvtColor(coin, cv2.COLOR_BGR2GRAY)
-        _, dark = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY_INV)
+        _, dark = cv2.threshold(gray, 26, 255, cv2.THRESH_BINARY_INV)
         h = dark.shape[0]
         slices = [
             dark[0:h//4, :],
@@ -75,8 +75,8 @@ def upsidedown(coin, mode, blobs):
         for i, score in enumerate(scores):
             print(f"Slice {i}: {score}")
             
-        # If bottom quarter has more dark pixels than top, the coin is upside down
-        if scores[0] < scores[3]:
+        # If top quarter has more dark pixels than bottom, the coin is upside down
+        if scores[0] > scores[3]:
             coin = cv2.rotate(coin, cv2.ROTATE_180)
             return True
         
