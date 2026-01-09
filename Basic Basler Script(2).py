@@ -62,7 +62,7 @@ STAR_WARS_NUMBERS = {
     9: ["BIG", "SMALL", "SMALL", "SMALL"]
 }
 
-DIST_THRESHOLD = 60
+DIST_THRESHOLD = 50
 
 GROUP_COLORS = [
     (255, 0, 0),
@@ -77,9 +77,10 @@ def euclidean(p1, p2):
     return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
 
 def classify_area(area):
+    #print("AREA: ", area)
     if 100 < area < 190:
         return "SMALL"
-    elif 300 < area < 500:
+    elif 330 < area < 500:
         return "MEDIUM"
     elif 500 < area < 700:
         return "BIG"
@@ -94,7 +95,17 @@ def classify_group(size_labels):
 
     return None
 
+def is_inside_coin(cx, cy, coin_contours):
+    for coin in coin_contours:
+        if cv2.pointPolygonTest(coin, (cx, cy), False) >= 0:
+            return True
+    return False
 
+
+coint_amount = 0
+color_masks = []
+total_digits = []
+digit_test = []
 
 while camera.IsGrabbing():
     grabResult = camera.RetrieveResult(
@@ -130,13 +141,14 @@ while camera.IsGrabbing():
             area = cv2.contourArea(contour)
          #   print(contour)
             if 3000 < area < 2000000:
+                coint_amount += 1
                 cv2.drawContours(img, [contour], -1, (255,255,255), 3)
         
         
         # Now find contours for each color
         hsv = cv2.cvtColor(img_no_green, cv2.COLOR_BGR2HSV)
-
-        for color_name in ["blue", "red", "yellow"]:
+        
+        for color_name in ["red", "yellow", "blue"]:
             if color_name == "red":
                 # Red has two HSV ranges
                 lower1 = np.array(COLOR_RANGES["red1"][0])
@@ -147,14 +159,18 @@ while camera.IsGrabbing():
                 mask1 = cv2.inRange(hsv, lower1, upper1)
                 mask2 = cv2.inRange(hsv, lower2, upper2)
                 mask = cv2.bitwise_or(mask1, mask2)
+                color_masks.append(mask)
             else:
                 lower = np.array(COLOR_RANGES[color_name][0])
                 upper = np.array(COLOR_RANGES[color_name][1])
                 mask = cv2.inRange(hsv, lower, upper)
+                color_masks.append(mask)
 
+            
+            #mask = np.maximum.reduce(color_masks)
+            
+            cv2.imshow("mask", mask)
 
-            #cv2.imshow("mask", mask)
-            # Find contours
             contours, hierarchy = cv2.findContours(
                 mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
             )
@@ -183,17 +199,22 @@ while camera.IsGrabbing():
             groups = []  # list of lists (indices into centroids list)
 
             for idx, (_, c) in enumerate(centroids):
+                
                 placed = False
 
                 for group in groups:
+
                     _, ref_c = centroids[group[0]]
                     if euclidean(c, ref_c) < DIST_THRESHOLD:
                         group.append(idx)
                         placed = True
                         break
-
+                    
+                    
                 if not placed:
                     groups.append([idx])
+
+                
 
             # -----------------------------
             # DRAW RESULTS
@@ -203,6 +224,7 @@ while camera.IsGrabbing():
 
                 group_sizes = []
                 group_centers = []
+                
 
                 for centroid_idx in group:
                     contour_i, (cx, cy) = centroids[centroid_idx]
@@ -222,14 +244,58 @@ while camera.IsGrabbing():
                 # -----------------------------
                 # CLASSIFY DIGIT
                 # -----------------------------
+
+                group_items = list(zip(group_sizes, group_centers))
+
+                group_items.sort(key=lambda x: x[1][0])
+
+                sorted_sizes = [size for size, _ in group_items]
+
                 digit = classify_group(group_sizes)
 
+                #total_digits.append(digit)
+                #print(total_digits)
                 # Compute group label position (average centroid)
                 if group_centers:
                     avg_x = int(sum(p[0] for p in group_centers) / len(group_centers))
                     avg_y = int(sum(p[1] for p in group_centers) / len(group_centers))
+                    
+                    label = str(digit) if digit is not None else "?"
 
-                    label = str(digit) + f": G_{g_idx}" if digit is not None else "?"
+
+                    if color_name == "red":
+                        if len(groups) > 2:
+                            if len(total_digits) > 3:
+                                #print(total_digits)
+                                print()
+                                value = 0
+                                for digit_idx in range(len(total_digits) - 1):
+                                    value = total_digits[digit_idx] * total_digits[digit_idx + 1]
+                            else:
+                                value = 0
+                            label = str(digit) + f": {value}" if digit is not None else "?"
+                        else:
+                            print()
+                            #print(group_sizes)
+                            #if len(total_digits) > 1:
+                             #   print(total_digits)
+                              #  value = total_digits[0] * total_digits[1]
+                            #else:
+                             #   value = 0
+                            #label = str(digit) + f": VALUE OF COIN = {value}" if digit is not None else "?"
+                    elif color_name == "blue":
+                        if len(groups) > 3:
+                            label = str(digit) + f": G_{g_idx % 3}" if digit is not None else "?"
+                        else:
+                            label = str(digit) + f": G_{g_idx}" if digit is not None else "?"
+                    else:
+                        if len(groups) > 3:
+                            label = str(digit) + f": G_{g_idx % 3}" if digit is not None else "?"
+                        else:
+                            label = str(digit) + f": G_{g_idx}" if digit is not None else "?"
+                        
+
+
 
                     cv2.putText(
                         img,
@@ -242,12 +308,16 @@ while camera.IsGrabbing():
                         cv2.LINE_AA
                     )
 
-
+        
         # FPS calculation
         curr_time = time.time()
         fps = 1.0 / (curr_time - prev_time)
         prev_time = curr_time
 
+        print("COINT AMOUNT:", coint_amount)
+        coint_amount = 0
+        color_masks = []
+        total_digits = []
         cv2.putText(
             img,
             f"FPS: {fps:.2f}",

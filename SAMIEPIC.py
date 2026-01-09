@@ -6,15 +6,12 @@ https://www.geeksforgeeks.org/clahe-histogram-eqalization-opencv/
 from pypylon import pylon
 import cv2
 import numpy as np
-from obj_fraud import process_image
+from notLive import main
 
 
 
 def resize(img):
     return cv2.resize(img, (int(img.shape[1]//3), int(img.shape[0]//3)))
-
-
-
 
 # conecting to the first available camera
 camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
@@ -27,9 +24,6 @@ converter = pylon.ImageFormatConverter()
 converter.OutputPixelFormat = pylon.PixelType_BGR8packed
 converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
 img_id=0
-
-#epic = IntegratedFraudDetector()
-
 while camera.IsGrabbing():
     grabResult = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
 
@@ -37,12 +31,11 @@ while camera.IsGrabbing():
         # Access the image data
         image = converter.Convert(grabResult)
         img = image.GetArray()
-        #gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img_resized = cv2.resize(img, None, fx=0.3, fy=0.3)
+        gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        epic = process_image(img_resized, show_contours=True)
+        vis = main()
         # Display the resulting frame
-        cv2.imshow('basler live feed', epic)
+        cv2.imshow('basler live feed', resize(vis))
         
         #cv2.imshow('title', combined_img)
         k = cv2.waitKey(1)

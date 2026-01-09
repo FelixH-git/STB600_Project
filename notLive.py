@@ -1,19 +1,19 @@
 import cv2
 import numpy as np
 import math
-import matplotlib.pyplot as plt
 from rotate import rotate_and_crop
 from rotate import upsidedown
+from pypylon import pylon
+
 
 # Define color ranges in HSV for masking
 COLOR_RANGES = {
     "blue":   ([90, 50, 50], [130, 255, 255]),
-    "red1":   ([0, 50, 50], [10, 255, 255]),    # red split range
+    "red1":   ([0, 50, 50], [10, 255, 255]),
     "red2":   ([160, 50, 50], [180, 255, 255]),
     "yellow": ([20, 100, 100], [35, 255, 255])
 }
 
-# Contour colors for drawing (BGR)
 DRAW_COLORS = {
     "black": (0, 0, 0),
     "blue": (255, 0, 0),
@@ -49,58 +49,33 @@ def euclidean(p1, p2):
     return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
 
 def classify_shape(area):
-    if 3000 < area < 50:
-        return None 
-
-    x, y, w, h = cv2.boundingRect(contour)
-    aspect_ratio = max(w, h) / max(1, min(w, h))
-
-    if 1 <= aspect_ratio < 1.3:
+    if area < 50 or area > 3000:
+        return None
+    if area < 190:
         return "SMALL"
-
-    if 1.3 <= aspect_ratio < 2.7:
+    if area < 500:
         return "MEDIUM"
-    
-    if 2.7 <= aspect_ratio < 4:
-        return "BIG"
-    return None
-
-
-def classify_area(area):
-    if 100 < area < 190:
-        return "SMALL"
-    elif 300 < area < 500:
-        return "MEDIUM"
-    elif 500 < area < 700:
-        return "BIG"
-    return None
+    return "BIG"
 
 def classify_group(size_labels):
     size_labels_sorted = sorted(size_labels)
-
     for digit, pattern in STAR_WARS_NUMBERS.items():
         if sorted(pattern) == size_labels_sorted:
             return digit
-
     return None
 
 def coin_value(color, digits):
-
     if not digits:
         return None
-
     if color == "blue":
         return int("".join(map(str, digits)))
-
     if color == "yellow":
         return int("".join(map(str, digits))) * 10
-
     if color == "red":
         value = 1
         for d in digits:
             value *= d
         return value
-
     return None
 
 
