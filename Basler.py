@@ -13,10 +13,20 @@ from obj_fraud import process_image
 def resize(img):
     return cv2.resize(img, (int(img.shape[1]//3), int(img.shape[0]//3)))
 
+# img = cv2.imread("756.png")
+
+# img_resized = cv2.resize(img, None, fx=0.3, fy=0.3)
+
+
+# epic = process_image(img_resized)
+
+# cv2.imshow("epic", epic)
+
+# cv2.waitKey(0)
 
 
 
-# conecting to the first available camera
+# # conecting to the first available camera
 camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
 
 # Grabing Continusely (video) with minimal delay
@@ -27,6 +37,9 @@ converter = pylon.ImageFormatConverter()
 converter.OutputPixelFormat = pylon.PixelType_BGR8packed
 converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
 img_id=0
+
+
+
 
 #epic = IntegratedFraudDetector()
 
