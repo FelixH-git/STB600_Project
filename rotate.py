@@ -10,7 +10,7 @@ def long_edge_vertical_angle(rect):
     if w > h:
         return -angle
     else:
-        return -(angle)
+        return -(angle - 90)
 
 def rotate_and_crop(img, cnt):
     rect = cv2.minAreaRect(cnt)
@@ -80,7 +80,52 @@ def upsidedown(coin, color, blobs):
             return True
         
     elif color == "yellow":
-        return False
+        gray = cv2.cvtColor(coin, cv2.COLOR_BGR2GRAY)
+        _, bw = cv2.threshold(
+            gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
+
+        h = bw.shape[0]
+        slices = [
+            bw[0 : h // 2, :],
+            bw[h // 2 : h, :]
+        ]
+
+        symbol = cv2.imread("symbol.png", cv2.IMREAD_GRAYSCALE)
+        _, symbol_bw = cv2.threshold(
+            symbol, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
+
+        symbol_cnts, _ = cv2.findContours(
+            symbol_bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        if not symbol_cnts:
+            return False
+
+        cnt_symbol = max(symbol_cnts, key=cv2.contourArea)
+
+        scores = []
+
+        for s in slices:
+            cnts, _ = cv2.findContours(
+                s, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            )
+
+            if not cnts:
+                scores.append(float("inf"))
+                continue
+
+            cnt_slice = max(cnts, key=cv2.contourArea)
+
+            score = cv2.matchShapes(
+                cnt_symbol, cnt_slice, cv2.CONTOURS_MATCH_I1, 0
+            )
+            scores.append(score)
+
+        best_idx = int(np.argmin(scores))
+    
+        return best_idx in (2, 3)
             
 
         
