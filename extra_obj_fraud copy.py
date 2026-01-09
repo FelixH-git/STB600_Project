@@ -4,6 +4,8 @@ import time
 import math
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional
+from rotate import rotate_and_crop 
+from rotate import upsidedown
 
 # ==================== CONSTANTS ====================
 MINAREA = 15000
@@ -334,22 +336,32 @@ class IntegratedFraudDetector:
                     centroids.append((i, (cx, cy)))
         
         groups = self._group_centroids(centroids)
-        
+
+        coin_blobs = [] 
+
         detected_digits = []
+
+        axis, origin = self.get_object_axis(obj_contour_scaled)
+        flip_axis = False
         for g_idx, group in enumerate(groups):
             color = GROUP_COLORS[g_idx % len(GROUP_COLORS)]
             group_sizes = []
             group_centers = []
-            
+            if color_name in ("blue", "yellow") and coin_blobs:
+                flip_axis = upsidedown(roi, color_name, coin_blobs)
+                if flip_axis:
+                    axis = -axis
             for centroid_idx in group:
                 contour_i, (cx, cy) = centroids[centroid_idx]
                 contour = contours[contour_i]
                 area = cv2.contourArea(contour)
                 size_label = self.geometry.classify_digit_size(area, contour)
                 
+
                 if size_label:
                     group_sizes.append(size_label)
                     group_centers.append((cx, cy))
+                    coin_blobs.append(((cx, cy), size_label))
                 
                 cv2.drawContours(roi, [contour], -1, color, 1)
                 cv2.circle(roi, (cx, cy), 3, color, -1)
@@ -361,7 +373,9 @@ class IntegratedFraudDetector:
                 avg_x = int(sum(p[0] for p in group_centers) / len(group_centers))
                 avg_y = int(sum(p[1] for p in group_centers) / len(group_centers))
                 
-                axis, origin = self.get_object_axis(obj_contour_scaled)
+                
+               
+
                 group_center = np.array([avg_x + x1, avg_y + y1], dtype=np.float32)
                 projection = np.dot(group_center - origin, axis)
                 detected_digits.append((digit, projection))
@@ -440,7 +454,21 @@ class IntegratedFraudDetector:
         if show_contours:
             vis = self.draw_contours(img, contours)
         
-        
+        coins = []
+
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            coin_img = rotate_and_crop(img, contour)
+            # plt.imshow(coin_img, cmap="gray")
+            # plt.title("after crop")
+            # plt.axis("off")
+            # plt.show()
+            coins.append({
+                "id": len(coins),
+                "contour": contour,
+                "image": coin_img,
+                "bbox": (x, y, w, h),
+            })
         # Step 2: Classify colors
         objects = self.classify_colors(img, mask, contours)
         

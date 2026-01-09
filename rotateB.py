@@ -76,6 +76,7 @@ def upsidedown(coin, color, blobs):
             
         # If top quarter has more dark pixels than bottom, the coin is upside down
         if scores[0] > scores[3]:
+            coin = cv2.rotate(coin, cv2.ROTATE_180)
             return True
         
     elif color == "yellow":
@@ -124,7 +125,7 @@ def upsidedown(coin, color, blobs):
 
         best_idx = int(np.argmin(scores))
     
-        return best_idx == 1
+        return best_idx in (2, 3)
             
 
         
