@@ -9,12 +9,12 @@ from typing import List, Tuple, Dict, Optional
 MINAREA = 15000
 KERNEL_SIZE = (9, 9)
 NOISE_THRESHOLD = 300
-DIST_THRESHOLD = 35
+DIST_THRESHOLD = 55
 
 # HSV color ranges with BGR display colors
 COLOR_RANGES = {
     "red": ([0, 50, 50], [10, 255, 255], (0, 0, 0)),
-    "red2": ([160, 50, 60], [180, 255, 255], (0, 0, 0)),
+    "red2": ([160, 50, 50], [180, 255, 255], (0, 0, 0)),
     "blue": ([80, 50, 50], [130, 255, 255], (0, 0, 0)),
     "yellow": ([20, 100, 100], [35, 255, 255], (0,0,0)),
     "black": ([0, 0, 0], [180, 255, 50], (50, 50, 50)),
@@ -34,7 +34,7 @@ DIGIT_COLOR_RANGES = {
 VALIDATION_RULES = [
     {"min": 15000, "max": 17000, "color": "red"},
     {"min": 21000, "max": 29000, "color": "yellow"},
-    {"min": 29500, "max": 35000, "color": "blue"},
+    {"min": 23000, "max": 35000, "color": "blue"},
 ]
 
 # Digit size classification
@@ -183,7 +183,7 @@ class IntegratedFraudDetector:
     
     def classify_colors(self, img: np.ndarray, mask: np.ndarray, 
                        contours: List) -> List[ObjectResult]:
-        """Classify colors in detected objects."""
+        """Classify colors in detected objects."""  
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         results = []
         
@@ -423,7 +423,7 @@ class IntegratedFraudDetector:
         # Step 1: Detect objects
         mask = self.clean_image(img)
         contours = self.find_contours(img, mask)
-        
+        total_values = []
         if show_contours:
             vis = self.draw_contours(img, contours)
         
@@ -467,7 +467,7 @@ class IntegratedFraudDetector:
                         obj.detected_digits = digits
 
                         value = self.compute_object_value(digits, color_to_count)
-
+                        total_values.append(value)
                         if value is not None:
                             cnt_scaled = (obj.contour * self.resize_scale).astype(np.int32)
                             x, y, w, h = cv2.boundingRect(cnt_scaled)
@@ -479,6 +479,17 @@ class IntegratedFraudDetector:
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 0.9,
                                 (255, 255, 255),
+                                2,
+                                cv2.LINE_AA
+                            )
+
+                            cv2.putText(
+                                img,
+                                f"All summed: {sum(total_values)}",
+                                (img.shape[0]-50, img.shape[1]-50),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.9
+                                (255,255,255),
                                 2,
                                 cv2.LINE_AA
                             )

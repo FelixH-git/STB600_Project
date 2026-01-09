@@ -266,11 +266,7 @@ while camera.IsGrabbing():
                     if color_name == "red":
                         if len(groups) > 2:
                             if len(total_digits) > 3:
-                                #print(total_digits)
-                                print()
                                 value = 0
-                                for digit_idx in range(len(total_digits) - 1):
-                                    value = total_digits[digit_idx] * total_digits[digit_idx + 1]
                             else:
                                 value = 0
                             label = str(digit) + f": {value}" if digit is not None else "?"
