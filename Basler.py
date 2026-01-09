@@ -29,6 +29,9 @@ converter = pylon.ImageFormatConverter()
 converter.OutputPixelFormat = pylon.PixelType_BGR8packed
 converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
 img_id=0
+
+#epic = IntegratedFraudDetector()
+
 while camera.IsGrabbing():
     grabResult = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
 
@@ -39,9 +42,9 @@ while camera.IsGrabbing():
         gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
 
-        vis = main(img)
+        epic = process_image(img_resized, show_contours=True)
         # Display the resulting frame
-        cv2.imshow('basler live feed', resize(vis))
+        cv2.imshow('basler live feed', epic)
         
         #cv2.imshow('title', combined_img)
         k = cv2.waitKey(1)
