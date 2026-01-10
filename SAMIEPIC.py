@@ -6,7 +6,7 @@ https://www.geeksforgeeks.org/clahe-histogram-eqalization-opencv/
 from pypylon import pylon
 import cv2
 import numpy as np
-from notLive import main
+from coinLive import main
 
 
 
@@ -33,7 +33,7 @@ while camera.IsGrabbing():
         img = image.GetArray()
         gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        vis = main()
+        vis = main(img)
         # Display the resulting frame
         cv2.imshow('basler live feed', resize(vis))
         

@@ -5,6 +5,8 @@ from rotate import rotate_and_crop
 from rotate import upsidedown
 from pypylon import pylon
 
+# Dark red / matte printing
+
 
 # Define color ranges in HSV for masking
 COLOR_RANGES = {
@@ -34,7 +36,7 @@ STAR_WARS_NUMBERS = {
     9: ["BIG", "SMALL", "SMALL", "SMALL"]
 }
 
-DIST_THRESHOLD = 150
+DIST_THRESHOLD = 200
 
 GROUP_COLORS = [
     (255, 0, 0),
@@ -49,12 +51,11 @@ def euclidean(p1, p2):
     return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
 
 def classify_shape(area, contour):
-    if 3000 < area < 50:
+    if 3000 < area < 500000:
         return None 
 
     x, y, w, h = cv2.boundingRect(contour)
     aspect_ratio = max(w, h) / max(1, min(w, h))
-    print('Ratio: ',aspect_ratio)
 
     if 1 <= aspect_ratio < 1.3:
         return "SMALL"
@@ -263,6 +264,10 @@ def main(img):
                             "digit": digit,
                             "center": (avg_x, avg_y)
                         })
+            if not results:
+                coin["digits"] = []
+                coin["value"] = None
+                continue
 
             coin_color = results[0]["color"]
 
@@ -302,7 +307,7 @@ def main(img):
                 (255, 255, 255),
                 2
             )
-
+    return img
 
 
 

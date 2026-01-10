@@ -7,7 +7,7 @@ from pypylon import pylon
 import cv2
 import numpy as np
 #from obj_fraud_detc import main
-from liveCNN import main
+from extra_obj_fraud_rotate import process_image
 
 
 
@@ -15,20 +15,10 @@ from liveCNN import main
 def resize(img):
     return cv2.resize(img, (int(img.shape[1]//3), int(img.shape[0]//3)))
 
-# img = cv2.imread("756.png")
-
-# img_resized = cv2.resize(img, None, fx=0.3, fy=0.3)
-
-
-# epic = process_image(img_resized)
-
-# cv2.imshow("epic", epic)
-
-# cv2.waitKey(0)
 
 
 
-# # conecting to the first available camera
+# conecting to the first available camera
 camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
 
 # Grabing Continusely (video) with minimal delay
@@ -39,9 +29,6 @@ converter = pylon.ImageFormatConverter()
 converter.OutputPixelFormat = pylon.PixelType_BGR8packed
 converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
 img_id=0
-
-
-
 
 #epic = IntegratedFraudDetector()
 
@@ -55,7 +42,7 @@ while camera.IsGrabbing():
         gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
 
-        epic = process_image(img_resized, show_contours=True)
+        epic = process_image(resize(img), show_contours=True)
         # Display the resulting frame
         cv2.imshow('basler live feed', epic)
         

@@ -11,7 +11,9 @@ from rotate import upsidedown
 MINAREA = 15000
 KERNEL_SIZE = (9, 9)
 NOISE_THRESHOLD = 300
-DIST_THRESHOLD = 35
+DIST_THRESHOLD = 43
+
+
 
 # HSV color ranges with BGR display colors
 COLOR_RANGES = {
@@ -25,8 +27,8 @@ COLOR_RANGES = {
 # Digit detection color ranges
 DIGIT_COLOR_RANGES = {
     "blue": ([90, 50, 110], [150, 255, 255]),
-    "red1": ([0, 50, 50], [10, 255, 255]),
-    "red2": ([160, 50, 50], [180, 255, 255]),
+    "red1": ([0, 100, 40],   [10, 255, 255]),
+    "red2": ([170, 100, 40], [180, 255, 255]),
     "yellow": ([20, 100, 100], [35, 255, 255])
 }
 
@@ -105,7 +107,6 @@ class GeometryUtils:
 
         x, y, w, h = cv2.boundingRect(contour)
         aspect_ratio = max(w, h) / max(1, min(w, h))
-        print('Ratio: ',aspect_ratio)
 
         if 1 <= aspect_ratio < 1.3:
             return "SMALL"
@@ -186,6 +187,17 @@ class IntegratedFraudDetector:
             print(f"Contour {i}: Area = {area}, BBox = ({x}, {y}, {w}, {h})")
         
         return vis
+    
+    def contour_solidity(self, cnt):
+        area = cv2.contourArea(cnt)
+        if area < 10:
+            return 0.0
+        hull = cv2.convexHull(cnt)
+        hull_area = cv2.contourArea(hull)
+        if hull_area == 0:
+            return 0.0
+        return area / hull_area
+
     
     # ========== COLOR CLASSIFICATION ==========
     def _get_color_mask(self, hsv: np.ndarray, contour_mask: np.ndarray, 
@@ -313,9 +325,18 @@ class IntegratedFraudDetector:
         roi = img[y1:y2, x1:x2].copy()
         roi_mask = obj_mask[y1:y2, x1:x2]
         
-        hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        roi_blur = cv2.medianBlur(roi, 3)
+        hsv_roi = cv2.cvtColor(roi_blur, cv2.COLOR_BGR2HSV)
         mask = self._get_digit_mask(hsv_roi, color_name)
         mask = cv2.bitwise_and(mask, roi_mask)
+
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+
+        h, s, v = cv2.split(hsv_roi)
+        mask[s < 100] = 0
+
 
         
         
@@ -329,7 +350,16 @@ class IntegratedFraudDetector:
 
             cv2.imshow("mask", mask)
             area = cv2.contourArea(contour)
-            if 100 < area < 3000:
+
+            
+
+            if 50 < area < 3000:
+                solidity = self.contour_solidity(contour)
+
+                # IGNORE SYMBOL
+                if solidity < 0.85:
+                    continue
+
                 M = cv2.moments(contour)
                 if M["m00"] != 0:
                     cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
@@ -355,7 +385,7 @@ class IntegratedFraudDetector:
                 contour_i, (cx, cy) = centroids[centroid_idx]
                 contour = contours[contour_i]
                 area = cv2.contourArea(contour)
-                size_label = self.geometry.classify_digit_size(area, contour)
+                size_label = self.geometry.classify_digit_size(contour)
                 
 
                 if size_label:
@@ -459,10 +489,7 @@ class IntegratedFraudDetector:
         for contour in contours:
             x, y, w, h = cv2.boundingRect(contour)
             coin_img = rotate_and_crop(img, contour)
-            # plt.imshow(coin_img, cmap="gray")
-            # plt.title("after crop")
-            # plt.axis("off")
-            # plt.show()
+
             coins.append({
                 "id": len(coins),
                 "contour": contour,
@@ -485,6 +512,8 @@ class IntegratedFraudDetector:
         # Step 4: Process each object
         valid_count = 0
         fraud_count = 0
+        
+        sum = 0
         
         for obj in objects:
             is_fraud, reason = self.check_fraud(obj)
@@ -513,6 +542,7 @@ class IntegratedFraudDetector:
                         if value is not None:
                             cnt_scaled = (obj.contour * self.resize_scale).astype(np.int32)
                             x, y, w, h = cv2.boundingRect(cnt_scaled)
+                            sum += value
 
                             cv2.putText(
                                 img,
@@ -526,8 +556,18 @@ class IntegratedFraudDetector:
                             )
 
                             print(f"   Final value ({color_to_count}): {value}")
-
         
+        h, w = img.shape[:2]
+        cv2.putText(
+            img,
+            f"Sum: {sum}",
+            (10, h - 10),          # 10px from left, 10px from bottom
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA
+        )
         #Summary
         print(f"\n{'='*50}")
         print(f"Total objects: {len(objects)}")

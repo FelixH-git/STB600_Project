@@ -9,7 +9,7 @@ from typing import List, Tuple, Dict, Optional
 MINAREA = 15000
 KERNEL_SIZE = (9, 9)
 NOISE_THRESHOLD = 300
-DIST_THRESHOLD = 35
+DIST_THRESHOLD = 45
 
 # HSV color ranges with BGR display colors
 COLOR_RANGES = {
@@ -23,8 +23,8 @@ COLOR_RANGES = {
 # Digit detection color ranges
 DIGIT_COLOR_RANGES = {
     "blue": ([90, 50, 110], [150, 255, 255]),
-    "red1": ([0, 50, 50], [10, 255, 255]),
-    "red2": ([160, 50, 50], [180, 255, 255]),
+    "red1": ([0, 100, 40],   [10, 255, 255]),
+    "red2": ([170, 100, 40], [180, 255, 255]),
     "yellow": ([20, 100, 100], [35, 255, 255])
 }
 
@@ -310,13 +310,21 @@ class IntegratedFraudDetector:
         
         roi = img[y1:y2, x1:x2].copy()
         roi_mask = obj_mask[y1:y2, x1:x2]
-        
-        hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+
+        roi_blur = cv2.medianBlur(roi, 3)
+        hsv_roi = cv2.cvtColor(roi_blur, cv2.COLOR_BGR2HSV)
         mask = self._get_digit_mask(hsv_roi, color_name)
         mask = cv2.bitwise_and(mask, roi_mask)
 
-        
-        
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+
+        h, s, v = cv2.split(hsv_roi)
+        mask[s < 100] = 0
+
+
+
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         
 
@@ -327,7 +335,7 @@ class IntegratedFraudDetector:
 
             cv2.imshow("mask", mask)
             area = cv2.contourArea(contour)
-            if 100 < area < 3000:
+            if 80 < area < 3000:
                 M = cv2.moments(contour)
                 if M["m00"] != 0:
                     cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
@@ -345,7 +353,7 @@ class IntegratedFraudDetector:
                 contour_i, (cx, cy) = centroids[centroid_idx]
                 contour = contours[contour_i]
                 area = cv2.contourArea(contour)
-                size_label = self.geometry.classify_digit_size(area, contour)
+                size_label = self.geometry.classify_digit_size(contour)
                 
                 if size_label:
                     group_sizes.append(size_label)
