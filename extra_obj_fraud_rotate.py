@@ -36,7 +36,7 @@ DIGIT_COLOR_RANGES = {
 
 
 VALIDATION_RULES = [
-    {"min": 15000, "max": 17000, "color": "red"},
+    {"min": 15000, "max": 19000, "color": "red"},
     {"min": 21000, "max": 29000, "color": "yellow"},
     {"min": 29500, "max": 35000, "color": "blue"},
 ]
@@ -312,106 +312,115 @@ class IntegratedFraudDetector:
         return groups 
     
     def count_digits_in_object(self, img_no_green: np.ndarray, img: np.ndarray,
-                               obj_contour_scaled: np.ndarray, color_name: str) -> Tuple[np.ndarray, List[int]]:
-        """Count digits within a single object's bounding region."""
+                           obj_contour_scaled: np.ndarray, color_name: str):
+
         obj_mask = np.zeros(img_no_green.shape[:2], dtype=np.uint8)
         cv2.drawContours(obj_mask, [obj_contour_scaled], -1, 255, -1)
-        
+
+        # Rotated rectangle
+        rect = cv2.minAreaRect(obj_contour_scaled)
+        (center, (width, height), angle) = rect
+        is_tall = height >= width
+
+        box = np.int32(cv2.boxPoints(rect))
+
+        # Axis-aligned ROI
         x, y, w, h = cv2.boundingRect(obj_contour_scaled)
         padding = 20
         x1, y1 = max(0, x - padding), max(0, y - padding)
         x2, y2 = min(img.shape[1], x + w + padding), min(img.shape[0], y + h + padding)
-        
+
         roi = img[y1:y2, x1:x2].copy()
         roi_mask = obj_mask[y1:y2, x1:x2]
-        
-        roi_blur = cv2.medianBlur(roi, 3)
-        hsv_roi = cv2.cvtColor(roi_blur, cv2.COLOR_BGR2HSV)
+
+        # Reference point (object-relative)
+        if is_tall:
+            ref_idx = np.argmin(box[:, 1])   # TOP
+        else:
+            ref_idx = np.argmin(box[:, 0])   # LEFT
+
+        ref_point = box[ref_idx]
+
+        # Convert ref to ROI space
+        ref_x_roi = ref_point[0] - x1
+        ref_y_roi = ref_point[1] - y1
+
+        # Draw rotated box
+        box_roi = box.copy()
+        box_roi[:, 0] -= x1
+        box_roi[:, 1] -= y1
+        cv2.drawContours(roi, [box_roi], 0, (0, 0, 255), 2)
+
+        # Draw reference line
+        if is_tall:
+            cv2.line(roi, (0, ref_y_roi), (roi.shape[1], ref_y_roi), (255, 255, 255), 2)
+            cv2.putText(roi, "REF-TOP", (5, max(15, ref_y_roi - 5)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+        else:
+            cv2.line(roi, (ref_x_roi, 0), (ref_x_roi, roi.shape[0]), (255, 255, 255), 2)
+            cv2.putText(roi, "REF-LEFT", (ref_x_roi + 5, 15),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+        # Digit detection
+        hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
         mask = self._get_digit_mask(hsv_roi, color_name)
         mask = cv2.bitwise_and(mask, roi_mask)
 
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 5))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-
-
-        h, s, v = cv2.split(hsv_roi)
-        mask[s < 100] = 0
-
-
-        
-        
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        
-
 
         centroids = []
         for i, contour in enumerate(contours):
-            cv2.drawContours(mask, [contour], -1, (255,0,0), 1)
-
-            cv2.imshow("mask", mask)
             area = cv2.contourArea(contour)
-
-            
-
-            if 50 < area < 3000:
-                solidity = self.contour_solidity(contour)
-
-                # IGNORE SYMBOL
-                if solidity < 0.85:
-                    continue
-
+            if 100 < area < 3000:
                 M = cv2.moments(contour)
                 if M["m00"] != 0:
-                    cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
                     centroids.append((i, (cx, cy)))
-        
-        groups = self._group_centroids(centroids)
 
-        coin_blobs = [] 
+        groups = self._group_centroids(centroids)
 
         detected_digits = []
 
-        axis, origin = self.get_object_axis(obj_contour_scaled)
-        flip_axis = False
         for g_idx, group in enumerate(groups):
             color = GROUP_COLORS[g_idx % len(GROUP_COLORS)]
             group_sizes = []
             group_centers = []
-            if color_name in ("blue", "yellow") and coin_blobs:
-                flip_axis = upsidedown(roi, color_name, coin_blobs)
-                if flip_axis:
-                    axis = -axis
+
             for centroid_idx in group:
                 contour_i, (cx, cy) = centroids[centroid_idx]
-                contour = contours[contour_i]
-                area = cv2.contourArea(contour)
-                size_label = self.geometry.classify_digit_size(contour)
-                
+                contourA = contours[contour_i]
+                area = cv2.contourArea(contourA)
 
+                size_label = self.geometry.classify_digit_size(area)
                 if size_label:
                     group_sizes.append(size_label)
                     group_centers.append((cx, cy))
-                    coin_blobs.append(((cx, cy), size_label))
-                
+
                 cv2.drawContours(roi, [contour], -1, color, 1)
                 cv2.circle(roi, (cx, cy), 3, color, -1)
-            
+
             digit = self.geometry.classify_digit_group(group_sizes)
             if digit is not None and group_centers:
-               
-                
                 avg_x = int(sum(p[0] for p in group_centers) / len(group_centers))
                 avg_y = int(sum(p[1] for p in group_centers) / len(group_centers))
-                
-                
-               
 
-                group_center = np.array([avg_x + x1, avg_y + y1], dtype=np.float32)
-                projection = np.dot(group_center - origin, axis)
-                detected_digits.append((digit, projection))
-                cv2.putText(roi, f"{digit}", (avg_x, avg_y),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2, cv2.LINE_AA)
-        
+                abs_x = avg_x + x1
+                abs_y = avg_y + y1
+
+                distance = (abs_y - ref_point[1]) if is_tall else (abs_x - ref_point[0])
+                detected_digits.append((digit, distance))
+
+                cv2.putText(roi, str(digit), (avg_x, avg_y - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+
+                if is_tall:
+                    cv2.arrowedLine(roi, (avg_x, ref_y_roi), (avg_x, avg_y),
+                                    (255, 255, 255), 1)
+                else:
+                    cv2.arrowedLine(roi, (ref_x_roi, avg_y), (avg_x, avg_y),
+                                    (255, 255, 255), 1)
+
         img[y1:y2, x1:x2] = roi
         return img, detected_digits
     
@@ -466,6 +475,7 @@ class IntegratedFraudDetector:
             return value
 
         elif color_name == "blue":
+            
             return int("".join(map(str, digits)))
 
         elif color_name == "yellow":
